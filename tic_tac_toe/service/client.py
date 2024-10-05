@@ -26,7 +26,7 @@ class Client(ApplicationType):
         while self.client_message_handler is not None:
             # TODO: get player name for register and then get player input before sending messages
             self.client_message_handler.write_request(request)
-            #time.sleep(5)
+            time.sleep(5)
 
         self.client_socket_thread.join()
 

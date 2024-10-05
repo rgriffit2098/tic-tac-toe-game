@@ -5,7 +5,6 @@ import json
 import io
 import struct
 
-
 class MessageHandler(ABC):
     def __init__(self, selector, sock, addr):
         self.selector = selector

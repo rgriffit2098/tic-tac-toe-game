@@ -1,5 +1,4 @@
 from tic_tac_toe.message_handler.message_handler import MessageHandler
-import struct
 
 class ClientMessageHandler(MessageHandler):
     def __init__(self, selector, sock, addr):
@@ -64,9 +63,6 @@ class ClientMessageHandler(MessageHandler):
         self.json_header = None
         self.waiting_for_response = False
         self.response = None
-
-        # Close when response has been processed
-        #self.close()
 
     def _process_response_json_content(self):
         content = self.response
