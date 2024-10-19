@@ -1,5 +1,4 @@
-import time
-
+from tic_tac_toe.message.register import Register
 from tic_tac_toe.service.application_type import ApplicationType
 from tic_tac_toe.message_handler.client_message_handler import ClientMessageHandler
 from threading import Thread
@@ -17,16 +16,21 @@ class Client(ApplicationType):
 
     def start(self):
         print("Starting tic-tac-toe client")
-        request = self.create_request("register", "player")
+        print("What would you like your player name to be?")
+        player_name = input()
+        register_event = Register(player_name)
+        request = self.create_request(register_event)
         self.start_connection(self.server_host, self.server_port)
         self.client_socket_thread = Thread(target=self.process_socket_traffic)
         self.client_socket_thread.start()
 
+        #send register request
+        self.client_message_handler.write_request(request)
+
         #while client is still connected to the server
         while self.client_message_handler is not None:
-            # TODO: get player name for register and then get player input before sending messages
-            self.client_message_handler.write_request(request)
-            time.sleep(5)
+            one = 1
+        #self.client_message_handler.write_request(request)
 
         self.client_socket_thread.join()
 
@@ -64,10 +68,9 @@ class Client(ApplicationType):
             self.sel.close()
             self.client_message_handler = None
 
-    def create_request(self, action, value):
-        if action == "register":
-            return dict(
-                type="text/json",
-                encoding="utf-8",
-                content=dict(action=action, value=value),
-            )
+    def create_request(self, event):
+        return dict(
+            type="text/json",
+            encoding="utf-8",
+            content=dict(action=event.event_type.value, data=event.data),
+        )
