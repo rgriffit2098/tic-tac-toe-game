@@ -1,13 +1,17 @@
-from tic_tac_toe.service.application_type import ApplicationType
-from tic_tac_toe.message_handler.server_message_handler import ServerMessageHandler
+from tic_tac_toe.application.application_type import ApplicationType
+from tic_tac_toe.message_handler.server.server_message_handler import ServerMessageHandler
+from tic_tac_toe.message_handler.server.server_request_handler import ServerRequestHandler
 import socket
 import selectors
 import traceback
+import sys
 
 class Server(ApplicationType):
     def __init__(self, listening_port):
         super().__init__()
         self.listening_port = listening_port
+        #singleton server request handler to keep all states in sync
+        self.server_request_handler = ServerRequestHandler()
 
     def start(self):
         print("Starting tic-tac-toe server")
@@ -27,25 +31,47 @@ class Server(ApplicationType):
                 for key, mask in events:
                     #only ran when a new socket is created with a new client
                     if key.data is None:
-                        self.accept_wrapper(key.fileobj)
+                        self._accept_wrapper(key.fileobj)
                     else:
                         message = key.data
                         try:
                             message.process_events(mask)
+                        except ConnectionResetError:
+                            print(
+                                "server: error, client", f"{message.addr}", "has unexpectedly closed its connection"
+                            )
+
+                            self.server_request_handler.remove_connected_client(message.addr)
+                            message.close()
+
                         except Exception:
                             print(
                                 "server: error: exception for",
                                 f"{message.addr}:\n{traceback.format_exc()}",
                             )
                             message.close()
+
+
         except KeyboardInterrupt:
             print("caught keyboard interrupt, exiting")
         finally:
             self.sel.close()
 
-    def accept_wrapper(self, sock):
+    def _accept_wrapper(self, sock):
         conn, addr = sock.accept()  # Should be ready to read
         print("accepted connection from", addr)
         conn.setblocking(False)
-        server_message_handler = ServerMessageHandler(self.sel, conn, addr)
-        self.sel.register(conn, selectors.EVENT_READ, data=server_message_handler)
+        server_message_handler = ServerMessageHandler(self.sel, conn, addr, self.server_request_handler)
+        self.sel.register(conn, selectors.EVENT_READ | selectors.EVENT_WRITE, data=server_message_handler)
+        self.server_request_handler.add_new_connected_client(addr, server_message_handler)
+
+
+def main():
+    if len(sys.argv) < 2:
+        sys.exit('Not enough arguments: <listening port>')
+
+    server = Server(int(sys.argv[1]))
+    server.start()
+
+if __name__ == '__main__':
+    main()
