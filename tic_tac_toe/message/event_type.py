@@ -6,6 +6,7 @@ class EventType(Enum):
     START = 3
     STOP = 4
     MOVE = 5
-    BOARD_UPDATE = 6
-    FIN = 7
-    ALERT = 8
+    ORDER = 6
+    BOARD_UPDATE = 7
+    FIN = 8
+    ALERT = 9

@@ -9,10 +9,13 @@ class ServerMessageHandler(MessageHandler):
         self.request_queue = Queue()
         self.server_request_handler = server_request_handler
 
+    def add_internal_request(self, request):
+        self.request_queue.put(request)
+
     def write(self):
         #process requests and send responses back to client
         if not self.request_queue.empty():
-            self.create_response(self.request_queue.get())
+            self._create_response(self.request_queue.get())
 
         self._write()
 
@@ -21,9 +24,9 @@ class ServerMessageHandler(MessageHandler):
 
         #process client request
         if self.json_header:
-            self.process_request()
+            self._process_request()
 
-    def process_request(self):
+    def _process_request(self):
         content_len = self.json_header["content-length"]
         if not len(self._recv_buffer) >= content_len:
             return
@@ -39,10 +42,7 @@ class ServerMessageHandler(MessageHandler):
         #clear request contents now that request has been read and queued
         self.json_header = None
 
-    def add_internal_request(self, request):
-        self.request_queue.put(request)
-
-    def create_response(self, request):
+    def _create_response(self, request):
         response = self._create_response_json_content(request)
         message = self._create_message(**response)
         self._send_buffer += message

@@ -1,5 +1,3 @@
-from holoviews.operation.timeseries import resample
-
 from tic_tac_toe.message.event_type import EventType
 
 #singleton class to keep game state in sync with all clients
@@ -14,7 +12,7 @@ class ServerRequestHandler:
         self.registered_player_dict = dict()
 
     def process_client_request(self, addr, request):
-        success = False
+        success = True
         action = int(request.get("action"))
 
         #handle register event
@@ -41,7 +39,7 @@ class ServerRequestHandler:
         #alert requests made to the server are made internally to send to all clients
         #so forward on the contents
         elif EventType.ALERT.value == action:
-            response_data = request
+            response_data = request.get("data")
         else:
             response_data = f'Error: invalid action "{action}".'
 
@@ -50,13 +48,20 @@ class ServerRequestHandler:
     def add_new_connected_client(self, addr, server_message_handler):
         self.connected_player_dict[addr] = server_message_handler
 
-    def remove_new_connected_client(self, addr):
+    def remove_connected_client(self, addr):
         #remove client from connected players dictionary
         if addr in self.connected_player_dict:
             del(self.connected_player_dict[addr])
 
+        self._deregister_client(addr)
+
+    #deregisters clients and alerts all other clients
+    def _deregister_client(self, addr):
         #remove client from registered player dictionary if registered
         if addr in self.registered_player_dict:
+            response_data = f'"{self.registered_player_dict[addr]}" has de-registered.'
+            print(response_data)
+            self._send_message_to_clients(addr, EventType.ALERT, response_data)
             del(self.registered_player_dict[addr])
 
     #register method
