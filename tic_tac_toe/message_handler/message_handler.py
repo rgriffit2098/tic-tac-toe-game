@@ -4,9 +4,11 @@ import selectors
 import json
 import io
 import struct
+import logging
 
 class MessageHandler(ABC):
     def __init__(self, selector, sock, addr):
+        self.logger = logging.getLogger('app')
         self.selector = selector
         self.sock = sock
         self.addr = addr
@@ -53,7 +55,7 @@ class MessageHandler(ABC):
 
     def _write(self):
         if self._send_buffer:
-            print("sending", repr(self._send_buffer), "to", self.addr)
+            self.logger.info(f'sending {repr(self._send_buffer)} to {self.addr}')
             try:
                 # Should be ready to write
                 sent = self.sock.send(self._send_buffer)
@@ -114,11 +116,11 @@ class MessageHandler(ABC):
         return obj
 
     def close(self):
-        print("closing connection to", self.addr)
+        self.logger.info(f'closing connection to {self.addr}')
         try:
             self.selector.unregister(self.sock)
         except Exception as e:
-            print(
+            self.logger.error(
                 f"error: selector.unregister() exception for",
                 f"{self.addr}: {repr(e)}",
             )
@@ -126,7 +128,7 @@ class MessageHandler(ABC):
         try:
             self.sock.close()
         except OSError as e:
-            print(
+            self.logger.error(
                 f"error: socket.close() exception for",
                 f"{self.addr}: {repr(e)}",
             )

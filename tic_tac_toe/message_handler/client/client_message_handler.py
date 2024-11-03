@@ -1,16 +1,32 @@
 from queue import Queue
 from tic_tac_toe.message_handler.message_handler import MessageHandler
-from tic_tac_toe.message_handler.client.client_response_handler import ClientResponseHandler
+from tic_tac_toe.message_handler.client.client_synchronizer import ClientSynchronizer
 
 class ClientMessageHandler(MessageHandler):
     def __init__(self, selector, sock, addr):
         super().__init__(selector, sock, addr)
         self.request_queue = Queue()
-        self.client_response_handler = ClientResponseHandler()
+        self.client_response_handler = ClientSynchronizer()
 
     #sends requests to the server
     def send_request(self, request):
         self.request_queue.put(request)
+
+    #checks to see if the player has successfully registered
+    def is_registered(self):
+        return self.client_response_handler.is_registered()
+
+    def register_response_received(self):
+        return self.client_response_handler.register_response_received()
+
+    #gets a list of valid commands that can be output to the player
+    def get_valid_commands(self):
+        return self.client_response_handler.get_valid_commands()
+
+    #reads from server response queue and returns any responses that need to be
+    #print out to the player
+    def get_server_output(self):
+        return self.client_response_handler.get_server_output()
 
     def write(self):
         if not self.request_queue.empty():
@@ -28,7 +44,7 @@ class ClientMessageHandler(MessageHandler):
     #reads from request queue and sends it to server
     def _dequeue_request(self):
         request = self.request_queue.get()
-        print(f"Sending request to server: {request}")
+        self.logger.info(f"Sending request to server: {request}")
         content = request["content"]
         content_type = request["type"]
         content_encoding = request["encoding"]
@@ -55,7 +71,7 @@ class ClientMessageHandler(MessageHandler):
         # process json response
         encoding = self.json_header["content-encoding"]
         response = self._json_decode(data, encoding)
-        print("received response", repr(response), "from", self.addr)
+        self.logger.info(f'received response {repr(response)} from {self.addr}')
         self._process_response_json_content(response)
 
         self.json_header = None
