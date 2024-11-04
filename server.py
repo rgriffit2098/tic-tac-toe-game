@@ -39,18 +39,12 @@ class Server(ApplicationType):
                         try:
                             message.process_events(mask)
                         except ConnectionResetError:
-                            self.logger.error(
-                                "server: error, client", f"{message.addr}", "has unexpectedly closed its connection"
-                            )
-
+                            self.logger.error(f'server: error, client {message.addr} has unexpectedly closed its connection')
                             self.server_request_handler.remove_connected_client(message.addr)
                             message.close()
 
                         except Exception:
-                            self.logger.error(
-                                "server: error: exception for",
-                                f"{message.addr}:\n{traceback.format_exc()}",
-                            )
+                            self.logger.error(f'server: error: exception for {message.addr}:\n{traceback.format_exc()}')
                             message.close()
 
 
@@ -61,7 +55,7 @@ class Server(ApplicationType):
 
     def _accept_wrapper(self, sock):
         conn, addr = sock.accept()  # Should be ready to read
-        self.logger.info("accepted connection from", addr)
+        self.logger.info(f'accepted connection from {addr}')
         conn.setblocking(False)
         server_message_handler = ServerMessageHandler(self.sel, conn, addr, self.server_request_handler)
         self.sel.register(conn, selectors.EVENT_READ | selectors.EVENT_WRITE, data=server_message_handler)

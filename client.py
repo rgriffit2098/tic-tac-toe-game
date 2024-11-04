@@ -1,6 +1,15 @@
+from asyncio import timeout
+
+from altair import value
+
 from tic_tac_toe.message.register import Register
+from tic_tac_toe.message.start import Start
+from tic_tac_toe.message.stop import Stop
+from tic_tac_toe.message.move import Move
+from tic_tac_toe.message.deregister import Deregister
 from tic_tac_toe.application.application_type import ApplicationType
 from tic_tac_toe.message_handler.client.client_message_handler import ClientMessageHandler
+from tic_tac_toe.message.event_type import EventType
 from threading import Thread
 import selectors
 import traceback
@@ -8,6 +17,7 @@ import socket
 import sys
 import logging
 import datetime
+import time
 
 class Client(ApplicationType):
     def __init__(self, server_host, server_port):
@@ -48,9 +58,7 @@ class Client(ApplicationType):
 
             #initial register request
             if not initial_register_request_sent:
-                print("What would you like your player name to be?")
-                player_name = input()
-                request = self._create_request(Register(player_name))
+                request = self._handle_register_event()
                 initial_register_request_sent = True
 
             #initial register request was sent but player name was taken
@@ -75,7 +83,7 @@ class Client(ApplicationType):
                     try:
                         user_input = input()
                         val = int(user_input)
-                        request = self._create_request(command_list[val])
+                        request = self._create_request_from_command(command_list[val])
                         user_input_is_valid = True
                     except ValueError:
                         print("That's not a valid option, please input a number")
@@ -84,6 +92,29 @@ class Client(ApplicationType):
 
             if request is not None:
                 self.client_message_handler.send_request(request)
+
+            menu_timeout = 0
+            while not self.client_message_handler.new_state_detected() and menu_timeout != 30:
+                menu_timeout += 1
+                time.sleep(1)
+
+                if menu_timeout % 5 == 0:
+                    print("Waiting for updates from server")
+
+                if menu_timeout == 30:
+                    print("Timed out waiting for new updates from server, would you like to keep waiting for updates? (y/n)")
+                    valid_y_n = False
+
+                    #check if user wants to keep waiting for server updates
+                    while not valid_y_n:
+                        user_input = input()
+                        if user_input.lower() == 'y':
+                            menu_timeout = 0
+                            valid_y_n = True
+                        elif user_input.lower() == 'n':
+                            valid_y_n = True
+                        else:
+                            print("Invalid option, select y for yes or n for no")
 
     #threaded method to print out server messages without input blocking
     def _client_output_handler(self):
@@ -114,10 +145,7 @@ class Client(ApplicationType):
                     try:
                         message.process_events(mask)
                     except Exception:
-                        self.logger.error(
-                            "client: error: exception for",
-                            f"{message.addr}:\n{traceback.format_exc()}",
-                        )
+                        self.logger.error(f'client: error: exception for {message.addr}:\n{traceback.format_exc()}')
                         message.close()
                 # Check for a socket being monitored to continue.
                 if not self.sel.get_map():
@@ -129,8 +157,62 @@ class Client(ApplicationType):
             self.sel.close()
             self.client_message_handler = None
 
-    #TODO need a request handler to transform string event types selected from menu to valid requests with data
-    # to be sent to the server
+    #processes different types of commands that the player has selected
+    def _create_request_from_command(self, command):
+        request = None
+
+        if EventType.REGISTER.name == command:
+            request = self._handle_register_event()
+        elif EventType.START.name == command:
+            request = self._handle_start_event()
+        elif EventType.STOP.name == command:
+            request = self._handle_stop_event()
+        elif EventType.MOVE.name == command:
+            request = self._handle_player_move_event()
+        elif EventType.DEREGISTER.name == command:
+            request = self._handle_deregister_event()
+
+        return request
+
+    #handle register event for initial register of if player de-registers and re-registers
+    def _handle_register_event(self):
+        print("What would you like your player name to be?")
+        player_name = input()
+        return self._create_request(Register(player_name))
+
+    def _handle_start_event(self):
+        return self._create_request(Start())
+
+    def _handle_stop_event(self):
+        return self._create_request(Stop())
+
+    #handles getting the player's next move
+    def _handle_player_move_event(self):
+        possible_moves_list = self.client_message_handler.get_possible_moves_list()
+        possible_moves_board = self.client_message_handler.format_board(possible_moves_list)
+        possible_moves_list_only_int = [item for item in possible_moves_list if item.isdigit()]
+
+        print(possible_moves_board)
+        valid_move_picked = False
+        player_move = None
+
+        #retrieve the next move from the player
+        while not valid_move_picked:
+            print("Select a spot that you would like to place your next move:")
+            player_move = input()
+            player_move = "".join(player_move.split())
+
+            #validate against possible move list of only integers
+            if player_move in possible_moves_list_only_int:
+                valid_move_picked = True
+            else:
+                print("That's not a valid move, please try again")
+
+        return self._create_request(Move(player_move))
+
+    def _handle_deregister_event(self):
+        return self._create_request(Deregister())
+
     def _create_request(self, event):
         return dict(
             type="text/json",

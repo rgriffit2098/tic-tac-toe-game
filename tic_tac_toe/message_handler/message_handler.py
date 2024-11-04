@@ -120,18 +120,12 @@ class MessageHandler(ABC):
         try:
             self.selector.unregister(self.sock)
         except Exception as e:
-            self.logger.error(
-                f"error: selector.unregister() exception for",
-                f"{self.addr}: {repr(e)}",
-            )
+            self.logger.error(f'error: selector.unregister() exception for {self.addr}: {repr(e)}')
 
         try:
             self.sock.close()
         except OSError as e:
-            self.logger.error(
-                f"error: socket.close() exception for",
-                f"{self.addr}: {repr(e)}",
-            )
+            self.logger.error(f'error: socket.close() exception for {self.addr}: {repr(e)}')
         finally:
             # Delete reference to socket object for garbage collection
             self.sock = None

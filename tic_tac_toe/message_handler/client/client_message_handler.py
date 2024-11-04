@@ -6,7 +6,7 @@ class ClientMessageHandler(MessageHandler):
     def __init__(self, selector, sock, addr):
         super().__init__(selector, sock, addr)
         self.request_queue = Queue()
-        self.client_response_handler = ClientSynchronizer()
+        self.client_synchronizer = ClientSynchronizer()
 
     #sends requests to the server
     def send_request(self, request):
@@ -14,25 +14,35 @@ class ClientMessageHandler(MessageHandler):
 
     #checks to see if the player has successfully registered
     def is_registered(self):
-        return self.client_response_handler.is_registered()
+        return self.client_synchronizer.is_registered()
 
     def register_response_received(self):
-        return self.client_response_handler.register_response_received()
+        return self.client_synchronizer.register_response_received()
 
     #gets a list of valid commands that can be output to the player
     def get_valid_commands(self):
-        return self.client_response_handler.get_valid_commands()
+        return self.client_synchronizer.get_valid_commands()
 
     #reads from server response queue and returns any responses that need to be
     #print out to the player
     def get_server_output(self):
-        return self.client_response_handler.get_server_output()
+        return self.client_synchronizer.get_server_output()
+
+    #determines the possible moves that a player can make on the board
+    def get_possible_moves_list(self):
+        return self.client_synchronizer.get_possible_moves_list()
+
+    def new_state_detected(self):
+        return self.client_synchronizer.new_state_detected()
+
+    #formats board with data provided
+    def format_board(self, possible_moves_list):
+        return self.client_synchronizer.format_board(possible_moves_list)
 
     def write(self):
         if not self.request_queue.empty():
             #write request to buffer
             self._dequeue_request()
-
 
     def read(self):
         super().read()
@@ -77,4 +87,4 @@ class ClientMessageHandler(MessageHandler):
         self.json_header = None
 
     def _process_response_json_content(self, response):
-        self.client_response_handler.process_server_message(response)
+        self.client_synchronizer.process_server_message(response)

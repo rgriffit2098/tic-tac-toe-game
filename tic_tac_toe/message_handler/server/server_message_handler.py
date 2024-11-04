@@ -36,7 +36,7 @@ class ServerMessageHandler(MessageHandler):
 
         encoding = self.json_header["content-encoding"]
         request = self._json_decode(data, encoding)
-        self.logger.info("received request", repr(request), "from", self.addr)
+        self.logger.info(f'received request {repr(request)} from {self.addr}')
         self.request_queue.put(request)
 
         #clear request contents now that request has been read and queued

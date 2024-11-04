@@ -40,6 +40,14 @@ to all clients.
 8. Fin - Server will send a message to all clients when the game is finished with the reason.
 9. Alert - Server will send an alert to all clients containing some information to print to the client
 
+**Client/Server Synchronizers**
+
+The client and server both have singleton classes that act as synchronizers. Request and response messages are routed through
+the synchronizers so that they can update their game state with the most up-to-date information. The server will keep track
+of the complete state of the game such as who's turn it is and what the state of the tic-tac-toe board is. The client will
+keep track of what messages it is allowed to send to the server based on the state of the game. It will handle the input and 
+output messages in separate threads to prevent delays.
+
 **Additional resources:**
 
 * [[Link to Python documentation](https://docs.python.org/3/)]
