@@ -17,11 +17,9 @@ class MessageHandler(ABC):
         self._json_header_len = None
         self.json_header = None
 
-    def process_events(self, mask):
-        if mask & selectors.EVENT_READ:
-            self.read()
-        if mask & selectors.EVENT_WRITE:
-            self.write()
+    def process_events(self):
+        self.read()
+        self.write()
 
     def read(self):
         self._read()

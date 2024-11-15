@@ -14,19 +14,18 @@ class ClientSynchronizer:
         #will update to true when ORDER has been received
         #will update to false when FIN has been received
         self.game_has_started = False
-        #determines if the player can send a move to the server
-        self.can_send_move = False
-        #saves the player's turn order so that the client can prevent users from
-        #sending moves when it's not their turn (either 0 or 1)
-        self.player_turn_order = None
         #saves the player's game symbol sent from the server (either X or O)
         self.player_game_symbol = None
         #current player's turn to make a move in the game
         self.current_turn = False
+        #queue all server responses to be retrieved by output thread
         self.server_responses = Queue()
+        #game state updated (lets menu know that it may need to refresh itself)
         self.state_updated = False
         #keep state of tic-tac-toe board
         self.tic_tac_toe_board = None
+        #game can be started when another player has joined
+        self.game_can_be_started = False
 
     #checks to see if the player has successfully registered
     def is_registered(self):
@@ -41,11 +40,11 @@ class ClientSynchronizer:
 
         if self.successfully_registered:
             if self.game_has_started:
-                if self.tic_tac_toe_board is not None:
+                if self.tic_tac_toe_board is not None and self.current_turn:
                     valid_commands.append(EventType.MOVE.name)
 
                 valid_commands.append(EventType.STOP.name)
-            else:
+            elif self.game_can_be_started and not self.game_has_started:
                 valid_commands.append(EventType.START.name)
 
             valid_commands.append(EventType.DEREGISTER.name)
@@ -116,8 +115,10 @@ class ClientSynchronizer:
             self._handle_order_msg(success, data)
         elif EventType.DEREGISTER.value == action:
             self._handle_deregister_msg(success, data)
-        elif EventType.ALERT.value == action:
-            self._handle_alert_msg(success, data)
+        elif EventType.PLAYER_JOINED.value == action:
+            self._handle_player_joined_msg(success, data)
+        elif EventType.PLAYER_LEFT.value == action:
+            self._handle_player_left_msg(success, data)
         else:
             self.logger.error(f'Error: invalid action "{action}".')
 
@@ -126,8 +127,8 @@ class ClientSynchronizer:
             self.successfully_registered = True
         else:
             self.successfully_registered = False
+            self.server_responses.put(data)
 
-        self.server_responses.put(data)
         self.register_response_received_from_server = True
         self.state_updated = True
 
@@ -139,25 +140,46 @@ class ClientSynchronizer:
     def _handle_fin_msg(self, success, data):
         #reset client game state
         self.game_has_started = False
-        self.player_turn_order = False
-        self.can_send_move = False
         self.player_game_symbol = None
         self.current_turn = False
         self.tic_tac_toe_board = None
         self.state_updated = True
+        self.server_responses.put(data + "\n")
 
     #format new board update for player
     def _handle_board_update_msg(self, success, data):
+        #if the board has already been initialized then a board update means
+        # we need to update whose turn it is
+        if self.tic_tac_toe_board is not None:
+            #if board is not fully taken up, display MOVE option to user
+            if " " in self.tic_tac_toe_board:
+                if self.current_turn:
+                    self.current_turn = False
+                else:
+                    self.current_turn = True
+            else:
+                self.current_turn = False
+
         self.tic_tac_toe_board = data
         board_update_msg = "Updated board received:\n"
         board_update_msg += self.format_board(data)
-        self.server_responses.put(board_update_msg)
+
+        #notify player that it is their turn
+        if self.current_turn:
+            board_update_msg += "It is your turn"
+
+        self.server_responses.put(board_update_msg + "\n")
         self.state_updated = True
 
     #save player order
     #order message is sent before board update so state has not been fully updated here yet
     def _handle_order_msg(self, success, data):
-        self.player_turn_order = data
+        player_turn, self.player_game_symbol = data.split(":")
+        self.server_responses.put("You were assigned symbol: " + self.player_game_symbol + "\n")
+        if int(player_turn) == 0:
+            self.current_turn = True
+        else:
+            self.current_turn = False
 
     def _handle_deregister_msg(self, success, data):
         if success:
@@ -165,9 +187,18 @@ class ClientSynchronizer:
         else:
             self.successfully_registered = True
 
-        self.server_responses.put(data)
+        self.server_responses.put(data + "\n")
         self.register_response_received_from_server = False
         self.state_updated = True
 
-    def _handle_alert_msg(self, success, data):
-        self.server_responses.put(data)
+    #player has joined, update game state
+    def _handle_player_joined_msg(self, success, data):
+        self.game_can_be_started = True
+        self.server_responses.put(data + "\n")
+        self.state_updated = True
+
+    #player left, update game state
+    def _handle_player_left_msg(self, success, data):
+        self.game_can_be_started = False
+        self.server_responses.put(data + "\n")
+        self.state_updated = True

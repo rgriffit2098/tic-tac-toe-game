@@ -38,7 +38,8 @@ to all clients.
 6. Order - Server will send a message to all clients with the order in which the players will take their turns. 
 7. Board-update - Server will send a message to all clients with the most up-to-date information after a move has been played. 
 8. Fin - Server will send a message to all clients when the game is finished with the reason.
-9. Alert - Server will send an alert to all clients containing some information to print to the client
+9. Player Joined - Notifies clients that a player has joined the game.
+10. Player left - Notifies clients that a player has left the game.
 
 **Client/Server Synchronizers**
 
