@@ -9,4 +9,5 @@ class EventType(Enum):
     ORDER = 6
     BOARD_UPDATE = 7
     FIN = 8
-    ALERT = 9
+    PLAYER_JOINED = 9
+    PLAYER_LEFT = 10

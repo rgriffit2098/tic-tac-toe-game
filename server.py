@@ -24,6 +24,7 @@ class Server(ApplicationType):
         lsock.bind((host, self.listening_port))
         lsock.listen()
         self.logger.info(f'listening on {(host, self.listening_port)}')
+        print("Server has started")
         lsock.setblocking(False)
         self.sel.register(lsock, selectors.EVENT_READ, data=None)
 
@@ -37,7 +38,7 @@ class Server(ApplicationType):
                     else:
                         message = key.data
                         try:
-                            message.process_events(mask)
+                            message.process_events()
                         except ConnectionResetError:
                             self.logger.error(f'server: error, client {message.addr} has unexpectedly closed its connection')
                             self.server_request_handler.remove_connected_client(message.addr)
