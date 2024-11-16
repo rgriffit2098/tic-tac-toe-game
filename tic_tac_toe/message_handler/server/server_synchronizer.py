@@ -1,5 +1,3 @@
-from sympy import false
-
 from tic_tac_toe.message.event_type import EventType
 import logging
 import random
@@ -181,11 +179,11 @@ class ServerSynchronizer:
         else:
             player_two_turn = 0
 
-        player_one_turn_set = false
+        player_one_turn_set = False
 
         #assign each player their order and symbol
         for registered_player in self.registered_player_dict:
-            if player_one_turn_set == false:
+            if player_one_turn_set == False:
                 self.player_turn_dict[registered_player] = str(player_one_turn) + ":X"
                 player_one_turn_set = True
 
