@@ -4,10 +4,10 @@ This a Tic-Tac-Toe game implemented using Python.
 
 **How to play:**
 
-1. **Start the server:** Run the `server.py` script with the arguments "\<server port number\>" on a machine that 
-is designated as the server. Example: `server.py` 6400
-2. **Connect clients:** Run the `client.py` script with the arguments "\<server ip\> \<server port number\>" on two 
-different machines that are not the server or on different terminals on the server. Example: `client.py` 127.0.0.1 6400
+1. **Start the server:** Run the `server.py` script with the arguments "-p \<server port number\>" on a machine that 
+is designated as the server. Example: `server.py` -p 6400
+2. **Connect clients:** Run the `client.py` script with the arguments "-i \<server ip\> -p \<server port number\>" on two 
+different machines that are not the server or on different terminals on the server. Example: `client.py` -i 127.0.0.1 -p 6400
 3. **Play the game:** Players take turns entering their moves into the terminal. The first player to get three in a row wins!
 
 **Technologies used:**
