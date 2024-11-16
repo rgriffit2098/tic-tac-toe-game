@@ -64,8 +64,8 @@ class Server(ApplicationType):
 
 
 def main():
-    if len(sys.argv) < 2:
-        sys.exit('Not enough arguments: <listening port>')
+    if len(sys.argv) < 3:
+        sys.exit('Not enough arguments: -p <listening port>')
 
     #create app logger
     logger = logging.getLogger('app')
@@ -76,8 +76,20 @@ def main():
     fh.setFormatter(formatter)
     logger.addHandler(fh)
 
-    server = Server(int(sys.argv[1]))
-    server.start()
+    try:
+        server_port = None
+
+        if sys.argv[1] == '-p':
+            server_port = int(sys.argv[2])
+
+        if server_port is None:
+            sys.exit('Server port must be specified')
+
+        server = Server(server_port)
+        server.start()
+    except Exception:
+        print(Exception)
+        sys.exit('Unhandled exception thrown, exiting server')
 
 if __name__ == '__main__':
     main()

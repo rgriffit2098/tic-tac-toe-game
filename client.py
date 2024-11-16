@@ -273,8 +273,8 @@ class Client(ApplicationType):
         return user_input
 
 def main():
-    if len(sys.argv) < 3:
-        sys.exit('Not enough arguments: <server ip> <server port>')
+    if len(sys.argv) < 5:
+        sys.exit('Not enough arguments: -i <server ip> -p <server port>')
 
     #create app logger
     logger = logging.getLogger('app')
@@ -285,8 +285,25 @@ def main():
     fh.setFormatter(formatter)
     logger.addHandler(fh)
 
-    client = Client(sys.argv[1], int(sys.argv[2]))
-    client.start()
+    try:
+        arguments_list = sys.argv[1:]
+        server_ip = None
+        server_port = None
+
+        for argument, value in zip(*[iter(arguments_list)]*2):
+            if argument == '-i':
+                server_ip = value
+            elif argument == '-p':
+                server_port = int(value)
+
+        if server_ip is None or server_port is None:
+            sys.exit('Server ip and port must be specified')
+
+        client = Client(server_ip, server_port)
+        client.start()
+    except Exception as e:
+        print(e)
+        sys.exit('Unhandled exception thrown, exiting server')
 
 if __name__ == '__main__':
     main()
