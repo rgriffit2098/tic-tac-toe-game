@@ -1,6 +1,6 @@
 # Tic-Tac-Toe Game
 
-This a Tic-Tac-Toe game implemented using Python.
+This a Tic-Tac-Toe game implemented using Python. It can only support two players at the same time.
 
 **How to play:**
 
@@ -48,6 +48,19 @@ the synchronizers so that they can update their game state with the most up-to-d
 of the complete state of the game such as who's turn it is and what the state of the tic-tac-toe board is. The client will
 keep track of what messages it is allowed to send to the server based on the state of the game. It will handle the input and 
 output messages in separate threads to prevent delays.
+
+**Security/Risk Evaluation**
+
+This tic-tac-toe game has several security issues. The first being that it does not communicate using TLS protocols. Anybody 
+listening on the network could possibly listen to any messages sent between the client and server. This can addressed by 
+using sockets with TLS enabled or using a python library that uses HTTPS with security best practices already built-in. 
+Another security concern is that there is no authentication feature implemented in this game so anybody that knows the IP 
+and port of the server can connect and do whatever they'd like. This can be mitigated by having an authentication feature 
+built into the application where the players would have to create a username and password to play the game. This would make 
+it easier to control who is able to connect to the server. Lastly, implementing an authentication system would require ensuring 
+that each player's credentials are kept private from outside parties. This would require storing their credentials in an 
+encrypted manner using either python libraries or outside solutions to ensure that the risk of any data leaks is mitigated as
+much as possible.
 
 **Additional resources:**
 

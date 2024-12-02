@@ -39,6 +39,10 @@ class ClientMessageHandler(MessageHandler):
     def format_board(self, possible_moves_list):
         return self.client_synchronizer.format_board(possible_moves_list)
 
+    # retrieves if the player has exited the game or not
+    def player_has_exit_game(self):
+        return self.client_synchronizer.player_has_exit_game()
+
     def write(self):
         if not self.request_queue.empty():
             #write request to buffer

@@ -27,6 +27,7 @@ class Client(ApplicationType):
         self.client_menu_thread = None
         self.client_output_thread = None
         self.client_input_queue = Queue()
+        self.stop_threads = False
 
     def start(self):
         self.logger.info("Starting tic-tac-toe client")
@@ -39,42 +40,44 @@ class Client(ApplicationType):
         self.client_menu_thread.start()
         # start thread to get user input
         self.client_input_thread = Thread(target=self._client_input_handler)
+        self.client_input_thread.daemon = True
         self.client_input_thread.start()
         #start server output thread
         self.client_output_thread = Thread(target=self._client_output_handler)
         self.client_output_thread.start()
 
-        #while client is still connected to the server
-        while self.client_message_handler is not None:
+        #while client is still connected to the server and the player has not de-registered
+        while self.client_message_handler is not None and not self.client_message_handler.player_has_exit_game():
             one = 1
 
-        self.client_menu_thread.join()
-        self.client_socket_thread.join()
-        self.client_input_thread.join()
-        self.client_output_thread.join()
+        self.stop_threads = True
+        self.client_menu_thread.join(timeout=1)
+        self.client_socket_thread.join(timeout=1)
+        self.client_input_thread.join(timeout=1)
+        self.client_output_thread.join(timeout=1)
 
     #menu updater handled in separate thread to dynamically update as the game state changes
     def _client_menu_handler(self):
         initial_register_request_sent = False
         prev_command_list = None
 
-        #while still connected
-        while self.client_message_handler is not None:
+        # while still connected
+        while self.client_message_handler is not None and not self.stop_threads:
             request = None
             request_sent = False
 
-            #initial register request
+            # initial register request
             if not initial_register_request_sent:
                 print("What would you like your player name to be?\n")
                 request = self._handle_register_event()
                 initial_register_request_sent = True
 
-            #player successfully registered, print out current game state menu
+            # player successfully registered, print out current game state menu
             elif self.client_message_handler.is_registered():
-                #get valid commands that the player can send in current state of the game
+                # get valid commands that the player can send in current state of the game
                 command_list = self.client_message_handler.get_valid_commands()
 
-                #prevent duplicate menu spam
+                # prevent duplicate menu spam
                 if command_list != prev_command_list:
                     prev_command_list = command_list
                     cmd_prompt = "What would you like to do?\n"
@@ -86,7 +89,7 @@ class Client(ApplicationType):
                 user_input_is_valid = False
                 new_state_detected = False
 
-                #exit if new game state detected
+                # exit if new game state detected
                 while not user_input_is_valid and not new_state_detected:
                     try:
                         user_input = None
@@ -102,18 +105,19 @@ class Client(ApplicationType):
                     except ValueError:
                         print("That's not a valid option, please input a number")
                     except IndexError:
-                        print(f'That\'s not a valid option, please input a number between 0 and {len(command_list)-1}')
+                        print(
+                            f'That\'s not a valid option, please input a number between 0 and {len(command_list) - 1}')
 
-            #initial register request was sent but player name was taken
-            elif (not self.client_message_handler.is_registered() and
-                  self.client_message_handler.register_response_received()):
+            # initial register request was sent but player name was taken
+            elif (self.client_message_handler.register_response_received() and
+                  not self.client_message_handler.is_registered()):
                 print("Player name already registered, please pick a different name\n")
                 request = self._handle_register_event()
 
             if request is not None:
                 self.client_message_handler.send_request(request)
 
-            #wait for menu updates after input has been made
+            # wait for menu updates after input has been made
             if request_sent:
                 menu_timeout = 0
                 while not self.client_message_handler.new_state_detected() and menu_timeout != 30:
@@ -124,10 +128,11 @@ class Client(ApplicationType):
                         print("Waiting for updates from server")
 
                     if menu_timeout == 30:
-                        print("Timed out waiting for new updates from server, would you like to keep waiting for updates? (y/n)")
+                        print(
+                            "Timed out waiting for new updates from server, would you like to keep waiting for updates? (y/n)")
                         valid_y_n = False
 
-                        #check if user wants to keep waiting for server updates
+                        # check if user wants to keep waiting for server updates
                         while not valid_y_n:
                             user_input = None
                             while user_input is None:
@@ -143,12 +148,12 @@ class Client(ApplicationType):
 
     #threaded method to get user input to prevent it from blocking server messages from being sent to the user
     def _client_input_handler(self):
-        while self.client_message_handler is not None:
+        while self.client_message_handler is not None and not self.stop_threads:
             self.client_input_queue.put(input())
 
     #threaded method to print out server messages without input blocking
     def _client_output_handler(self):
-        while self.client_message_handler is not None:
+        while self.client_message_handler is not None and not self.stop_threads:
             server_output = self.client_message_handler.get_server_output()
 
             #prints out server output
@@ -169,7 +174,7 @@ class Client(ApplicationType):
 
     def _process_socket_traffic(self):
         try:
-            while True:
+            while not self.stop_threads:
                 events = self.sel.select(timeout=None)
                 for key, mask in events:
                     message = key.data
@@ -273,8 +278,8 @@ class Client(ApplicationType):
         return user_input
 
 def main():
-    if len(sys.argv) < 5:
-        sys.exit('Not enough arguments: -i <server ip> -p <server port>')
+    if len(sys.argv) < 2:
+        sys.exit('Not enough arguments: -h for help or -i <server ip> -p <server port>')
 
     #create app logger
     logger = logging.getLogger('app')
@@ -289,21 +294,31 @@ def main():
         arguments_list = sys.argv[1:]
         server_ip = None
         server_port = None
+        print_help_and_exit = False
 
-        for argument, value in zip(*[iter(arguments_list)]*2):
-            if argument == '-i':
-                server_ip = value
-            elif argument == '-p':
-                server_port = int(value)
+        if len(sys.argv) > 2:
+            for argument, value in zip(*[iter(arguments_list)]*2):
+                if argument == '-i':
+                    server_ip = value
+                elif argument == '-p':
+                    server_port = int(value)
+                elif argument == '-h':
+                    print_help_and_exit = True
+        elif arguments_list[0] == '-h':
+            print_help_and_exit = True
 
-        if server_ip is None or server_port is None:
+        if print_help_and_exit:
+            sys.exit('To run the client, provide the ip address of the server with the -i option and provide the port '
+                     'that the server is listening on with the -p option.')
+        elif server_ip is None or server_port is None:
             sys.exit('Server ip and port must be specified')
-
-        client = Client(server_ip, server_port)
-        client.start()
+        else:
+            client = Client(server_ip, server_port)
+            client.start()
+            sys.exit('Client has been closed')
     except Exception as e:
         print(e)
-        sys.exit('Unhandled exception thrown, exiting server')
+        sys.exit('Unhandled exception thrown, exiting client')
 
 if __name__ == '__main__':
     main()

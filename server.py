@@ -64,8 +64,8 @@ class Server(ApplicationType):
 
 
 def main():
-    if len(sys.argv) < 3:
-        sys.exit('Not enough arguments: -p <listening port>')
+    if len(sys.argv) < 2:
+        sys.exit('Not enough arguments: -h for help or -p <listening port>')
 
     #create app logger
     logger = logging.getLogger('app')
@@ -77,16 +77,26 @@ def main():
     logger.addHandler(fh)
 
     try:
+        arguments_list = sys.argv[1:]
         server_port = None
+        print_help_and_exit = False
 
-        if sys.argv[1] == '-p':
-            server_port = int(sys.argv[2])
+        if len(sys.argv) > 2:
+            for argument, value in zip(*[iter(arguments_list)]*2):
+                if argument == '-p':
+                    server_port = int(value)
+                elif argument == '-h':
+                    print_help_and_exit = True
+        elif arguments_list[0] == '-h':
+            print_help_and_exit = True
 
-        if server_port is None:
+        if print_help_and_exit:
+            sys.exit('To run the server, provide the port that the server will be listening on with the -p option.')
+        elif server_port is None:
             sys.exit('Server port must be specified')
-
-        server = Server(server_port)
-        server.start()
+        else:
+            server = Server(server_port)
+            server.start()
     except Exception:
         print(Exception)
         sys.exit('Unhandled exception thrown, exiting server')
