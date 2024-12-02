@@ -26,6 +26,8 @@ class ClientSynchronizer:
         self.tic_tac_toe_board = None
         #game can be started when another player has joined
         self.game_can_be_started = False
+        #keeps track if player has sent exit game request
+        self.exit_game = False
 
     #checks to see if the player has successfully registered
     def is_registered(self):
@@ -72,6 +74,10 @@ class ClientSynchronizer:
 
         return new_state_detected
 
+    #retrieves if the player has exited the game or not
+    def player_has_exit_game(self):
+        return self.exit_game
+
     #determines the possible moves that a player can make on the board
     def get_possible_moves_list(self):
         possible_moves_list = self.tic_tac_toe_board
@@ -108,17 +114,17 @@ class ClientSynchronizer:
         elif EventType.START.value == action:
             self._handle_start_msg(success, data)
         elif EventType.BOARD_UPDATE.value == action:
-            self._handle_board_update_msg(success, data)
+            self._handle_board_update_msg(data)
         elif EventType.FIN.value == action:
-            self._handle_fin_msg(success, data)
+            self._handle_fin_msg(data)
         elif EventType.ORDER.value == action:
-            self._handle_order_msg(success, data)
+            self._handle_order_msg(data)
         elif EventType.DEREGISTER.value == action:
             self._handle_deregister_msg(success, data)
         elif EventType.PLAYER_JOINED.value == action:
-            self._handle_player_joined_msg(success, data)
+            self._handle_player_joined_msg(data)
         elif EventType.PLAYER_LEFT.value == action:
-            self._handle_player_left_msg(success, data)
+            self._handle_player_left_msg(data)
         else:
             self.logger.error(f'Error: invalid action "{action}".')
 
@@ -135,9 +141,14 @@ class ClientSynchronizer:
     #game has started but do not update menu options until order
     # and board_update msg has been received
     def _handle_start_msg(self, success, data):
-        self.game_has_started = True
+        if success:
+            self.game_has_started = True
+        else:
+            self.server_responses.put(data + "\n")
+            self.game_can_be_started = False
+            self.state_updated = True
 
-    def _handle_fin_msg(self, success, data):
+    def _handle_fin_msg(self, data):
         #reset client game state
         self.game_has_started = False
         self.player_game_symbol = None
@@ -147,7 +158,7 @@ class ClientSynchronizer:
         self.server_responses.put(data + "\n")
 
     #format new board update for player
-    def _handle_board_update_msg(self, success, data):
+    def _handle_board_update_msg(self, data):
         #if the board has already been initialized then a board update means
         # we need to update whose turn it is
         if self.tic_tac_toe_board is not None:
@@ -173,7 +184,7 @@ class ClientSynchronizer:
 
     #save player order
     #order message is sent before board update so state has not been fully updated here yet
-    def _handle_order_msg(self, success, data):
+    def _handle_order_msg(self, data):
         player_turn, self.player_game_symbol = data.split(":")
         self.server_responses.put("You were assigned symbol: " + self.player_game_symbol + "\n")
         if int(player_turn) == 0:
@@ -190,15 +201,16 @@ class ClientSynchronizer:
         self.server_responses.put(data + "\n")
         self.register_response_received_from_server = False
         self.state_updated = True
+        self.exit_game = True
 
     #player has joined, update game state
-    def _handle_player_joined_msg(self, success, data):
+    def _handle_player_joined_msg(self, data):
         self.game_can_be_started = True
         self.server_responses.put(data + "\n")
         self.state_updated = True
 
     #player left, update game state
-    def _handle_player_left_msg(self, success, data):
+    def _handle_player_left_msg(self, data):
         self.game_can_be_started = False
         self.server_responses.put(data + "\n")
         self.state_updated = True

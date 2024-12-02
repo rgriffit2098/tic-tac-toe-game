@@ -34,7 +34,7 @@ class ServerSynchronizer:
 
         if "internal_request" in request:
             internal_request = request.get("internal_request")
-            del request["internal_request"]
+            request.pop("internal_request")
 
         if not internal_request:
             #handle register event
@@ -42,7 +42,7 @@ class ServerSynchronizer:
                 response_data, success = self._process_register_request(addr, request)
             #handle de-register event
             elif EventType.DEREGISTER.value == action:
-                response_data, success = self._process_deregister_request(addr, request)
+                response_data, success = self._process_deregister_request(addr)
             #handle start event
             elif EventType.START.value == action:
                 response_data, success = self._process_start_request(addr)
@@ -69,22 +69,22 @@ class ServerSynchronizer:
     #remove client from connected player dictionary
     def remove_connected_client(self, addr):
         #remove client from connected players dictionary
-        if addr in self.connected_player_dict:
-            del(self.connected_player_dict[addr])
+        if addr in self.connected_player_dict.keys():
+            self.connected_player_dict.pop(addr)
 
         self._deregister_client(addr)
 
     #deregisters client if registered and alerts all other clients that the player has disconnected
     def _deregister_client(self, addr):
         #remove client from registered player dictionary if registered
-        if addr in self.registered_player_dict:
+        if addr in self.registered_player_dict.keys():
             response_data = f'"{self.registered_player_dict[addr]}" has left the game.'
             self.logger.info(response_data)
-            del(self.registered_player_dict[addr])
+            self.registered_player_dict.pop(addr)
 
             #finish game as player has left
             if self.game_has_started:
-                del(self.player_turn_dict[addr])
+                self.player_turn_dict.pop(addr)
                 self._send_fin_message(response_data)
             #notify other player that game can't be started anymore now that other player has left
             else:
@@ -119,20 +119,15 @@ class ServerSynchronizer:
         self.logger.info(response_data)
         return response_data, success
 
-    def _process_deregister_request(self, addr, request):
+    def _process_deregister_request(self, addr):
         self.logger.info(f'Processing deregister request from "{addr}"')
-        data = request.get("data")
         success = True
 
-        if addr in self.registered_player_dict:
-            if data in self.registered_player_dict.values():
-                self._deregister_client(addr)
-                response_data = f'"{data}" has successfully de-registered.'
-            else:
-                response_data = f'"{data}" was not already registered.'
-                success = False
+        if addr in self.registered_player_dict.keys():
+            response_data = f'"{self.registered_player_dict[addr]}" has successfully de-registered.'
+            self._deregister_client(addr)
         else:
-            response_data = f'"{data}" was not already registered.'
+            response_data = f'"{addr}" was not already registered.'
             success = False
 
         self.logger.info(response_data)
@@ -142,15 +137,20 @@ class ServerSynchronizer:
         self.logger.info(f'Processing start request from "{addr}"')
         success = True
 
-        if not self.game_has_started:
-            self.game_has_started = True
-            self.tic_tac_toe_board = self._create_new_board()
-            response_data = f'{self.registered_player_dict[addr]} has started the game'
-            self._send_message_to_clients(addr, EventType.START, response_data)
-            self._determine_player_order()
-            self._send_message_to_clients("", EventType.BOARD_UPDATE, self.tic_tac_toe_board)
+        #don't allow the game to start if only 1 player has registered
+        if len(self.registered_player_dict) > 1:
+            if not self.game_has_started:
+                self.game_has_started = True
+                self.tic_tac_toe_board = self._create_new_board()
+                response_data = f'{self.registered_player_dict[addr]} has started the game'
+                self._send_message_to_clients(addr, EventType.START, response_data)
+                self._determine_player_order()
+                self._send_message_to_clients("", EventType.BOARD_UPDATE, self.tic_tac_toe_board)
+            else:
+                response_data = "The game has already been started"
+                success = False
         else:
-            response_data = "The game has already been started"
+            response_data = "Not enough players have registered to start the game."
             success = False
 
         self.logger.info(response_data)
@@ -162,7 +162,8 @@ class ServerSynchronizer:
 
         if self.game_has_started:
             # send fin message to all players since game has been stopped
-            self._send_fin_message(f'{self.registered_player_dict[addr]} has stopped the game')
+            response_data = f'{self.registered_player_dict[addr]} has stopped the game'
+            self._send_fin_message(response_data)
         else:
             response_data = "The game has not been started yet"
             success = False
@@ -183,7 +184,7 @@ class ServerSynchronizer:
 
         #assign each player their order and symbol
         for registered_player in self.registered_player_dict:
-            if player_one_turn_set == False:
+            if not player_one_turn_set:
                 self.player_turn_dict[registered_player] = str(player_one_turn) + ":X"
                 player_one_turn_set = True
 
