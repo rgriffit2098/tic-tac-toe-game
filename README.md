@@ -62,6 +62,31 @@ that each player's credentials are kept private from outside parties. This would
 encrypted manner using either python libraries or outside solutions to ensure that the risk of any data leaks is mitigated as
 much as possible.
 
+**Future Project Roadmap**
+
+Given more time with this project, I would use a web framework to implement a web user interface so that it can be played 
+anywhere on the internet. The goal would be to allow users to make login credentials so that different stats can be tracked 
+such as their win/loss ratio. Another goal would be to make the user interface a lot easier to use. The command line is 
+fine, but it can definitely be a lot better. Security would also be something that would be improved. Utilizing TLS would 
+be a major improvement to the project.
+
+**Retrospective**
+
+Overall, the goal of the project was met. A playable tic-tac-toe game was made using Python sockets. The client and server 
+are able to handle interruptions during gameplay and there isn't any latency between all the systems. The messaging protocol 
+made it easy to implement the business logic as it was very clear what each message type was trying to do. Having synchronizers 
+classes in the server and client made it easy to keep track of all the different states of the game. Given that the game 
+was multithreaded, it did well in terms of not having weird raise conditions. 
+
+There were definitely improvements that could have been made. The user interface isn't as nice as one would like. Having 
+to select the "MOVE" option from the menu every time to make a play gets repetitive. To prevent this, it would have been 
+nice to have a user interface where the menu could be separated from the board move selections made by the player. Another 
+improvement that could be made is keeping track of the number of wins/losses a player had while they were connected to the 
+server. Also having the functionality to allow more than 2 players to join and play at a given time would enhance this game 
+drastically as that is a current limitation. Another feature that could be improved upon is the security of the game 
+communication between the server and the clients. Implementing TLS would help prevent any unwanted behaviours from outside 
+parties if they chose to interrupt the gameplay for any reason.
+
 **Additional resources:**
 
 * [[Link to Python documentation](https://docs.python.org/3/)]
